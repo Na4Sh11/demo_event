@@ -1,0 +1,56 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql" // Change to your database provider
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           Int      @id @default(autoincrement())
+  auth0_id     String   @unique
+  email        String   @unique
+  name         String
+  created_at   DateTime @default(now())
+  organization String
+  password     String
+  favorites    String[]
+  UserEvents   UserEvent[]
+  eventsPosted Event[]  @relation("PostedEvents")
+
+  @@map("users")
+}
+
+model Event {
+  id            Int      @id @default(autoincrement())
+  title         String
+  description   String
+  date          DateTime
+  location      String
+  category      String
+  created_at    DateTime @default(now())
+  updated_at    DateTime @updatedAt
+  postedById    Int
+  posted_by     User     @relation("PostedEvents", fields: [postedById], references: [id])
+  no_of_tickets Int
+  ticket_price  Float
+  tickets_sold  Int      @default(0)
+  UserEvents    UserEvent[]
+
+  @@map("events")
+}
+
+model UserEvent {
+  id         Int      @id @default(autoincrement())
+  user_id    Int
+  event_id   Int
+  status     String
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+  no_of_tickets Int
+  user       User     @relation(fields: [user_id], references: [id])
+  event      Event    @relation(fields: [event_id], references: [id])
+
+  @@map("user_events")
+}
