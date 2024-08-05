@@ -3,7 +3,7 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql" // Change to your database provider
+  provider = "mysql" // Change to your database provider
   url      = env("DATABASE_URL")
 }
 
@@ -15,7 +15,7 @@ model User {
   created_at   DateTime @default(now())
   organization String
   password     String
-  favorites    String[]
+  favorites    Json     // Use JSON type to store array of strings and integers
   UserEvents   UserEvent[]
   eventsPosted Event[]  @relation("PostedEvents")
 

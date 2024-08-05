@@ -11,14 +11,14 @@ const prisma = new PrismaClient();
 app.use(cors());
 app.use(express.json());
 
-app.use('/api/events', eventRoutes);
-app.use('/api/users', userRoutes);
+app.use('/events', eventRoutes);
+app.use('/users', userRoutes);
 
 app.get('/ping', (req, res) => {
-  res.send('pong');
+  res.send('Server is up and running');
 });
 
-app.use(authMiddleware); // Apply authentication middleware
+// app.use(authMiddleware); // Apply authentication middleware, commentted until Auth0 is completed
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
