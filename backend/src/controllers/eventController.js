@@ -1,3 +1,6 @@
+// import { syncEvents } from '../util/syncAPI.js';
+
+const { syncEvents } = require('../util/syncAPI');
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 
@@ -5,6 +8,7 @@ const prisma = new PrismaClient();
 // Get all events
 exports.getAllEvents = async (req, res) => {
   try {
+    await syncEvents();
     const events = await prisma.event.findMany();
     res.json(events);
   } catch (err) {
