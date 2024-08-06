@@ -13,7 +13,7 @@ model User {
   email        String      @unique
   name         String
   created_at   DateTime    @default(now())
-  organization String
+  organization String?
   password     String
   favorites    Json // Use JSON type to store array of strings and integers
   UserEvents   UserEvent[]
@@ -26,19 +26,22 @@ model Event {
   id              String      @id
   name            String
   type            String
-  url             String
-  locale          String
+  url             String?
+  locale          String?
   images          Json // Store JSON array for images
   salesStart      DateTime
   salesEnd        DateTime
-  localDate       DateTime
-  timezone        String
+  localDate       DateTime?
+  localTime       String?
+  timezone        String?
   statusCode      String
   category        String // This will represent the primary segment name
   venueId         String
   venue           Venue       @relation("EventVenue", fields: [venueId], references: [id])
   created_at      DateTime    @default(now())
   updated_at      DateTime    @updatedAt
+  price           Int?
+  no_of_tickets   Int?
   postedById      Int? // Made optional
   posted_by       User?       @relation("PostedEvents", fields: [postedById], references: [id])
   UserEvents      UserEvent[] @relation("EventUserEvents")
@@ -51,7 +54,7 @@ model Venue {
   id         String  @id
   name       String
   postalCode String
-  timezone   String
+  timezone   String?
   city       String
   state      String
   country    String
@@ -69,7 +72,8 @@ model UserEvent {
   status        String
   created_at    DateTime @default(now())
   updated_at    DateTime @updatedAt
-  no_of_tickets Int
+  no_of_tickets Int?
+  total_price   Int?
   user          User     @relation(fields: [user_id], references: [id])
   event         Event    @relation("EventUserEvents", fields: [event_id], references: [id])
 
