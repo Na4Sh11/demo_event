@@ -15,8 +15,8 @@ model User {
   created_at   DateTime    @default(now())
   organization String?
   password     String
-  favorites    Json // Use JSON type to store array of strings and integers
-  UserEvents   UserEvent[]
+  favorites    Json? // Use JSON type to store array of strings and integers
+  history      UserEvent[]
   eventsPosted Event[]     @relation("PostedEvents")
 
   @@map("users")
