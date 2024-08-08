@@ -3,11 +3,22 @@ const axios = require('axios');
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 
-async function syncEvents() {
+async function syncEventsAndVenues(filters) {
   try {
-    let size = 10;
-    // Fetch data from Ticketmaster API
-    const url = `https://app.ticketmaster.com/discovery/v2/events.json?size=${size}&apikey=AmsLFYVpfYKZOBTRU7vxz9Z2Fs3hEC8m`;
+    console.log("filters = {}", filters);
+    
+    // Construct the API URL with filters
+    let url = `https://app.ticketmaster.com/discovery/v2/events.json?apikey=AmsLFYVpfYKZOBTRU7vxz9Z2Fs3hEC8m`;
+
+    // Append filters to URL
+    for (const [key, value] of Object.entries(filters)) {
+      if (value) {
+        url += `&${encodeURIComponent(key)}=${encodeURIComponent(value)}`;
+      }
+    }
+
+    console.log("here = {}", url);
+    
     const response = await axios.get(url);
     const eventsData = response.data._embedded.events;
 
@@ -23,60 +34,12 @@ async function syncEvents() {
 
     const venuesArray = Array.from(venuesSet);
     await syncVenues(venuesArray);
-  
-    // Sync Events
-    for (const event of eventsData) {
-      
-      const localDate = event.dates?.start?.localDate
-        ? `${event.dates.start.localDate}T00:00:00Z`
-        : new Date().toISOString();
-      const venueId = event._embedded.venues && event._embedded.venues[0]?.id || null;
-
-
-      await prisma.event.upsert({
-        where: { id: event.id },
-        update: {
-          name: event.name,
-          type: event.type,
-          url: event.url,
-          locale: event.locale,
-          images: event.images,
-          salesStart: event.sales.public.startDateTime,
-          salesEnd: event.sales.public.endDateTime,
-          localDate: localDate ? new Date(localDate) : null,
-          timezone: event.dates.timezone,
-          statusCode: event.dates.status.code,
-          category: event.classifications[0]?.segment?.name || '',
-          venue: {
-            connect: { id: venueId }  // Ensure that venueId is correctly assigned
-          },
-          classifications: event.classifications
-        },
-        create: {
-          id: event.id,
-          name: event.name,
-          type: event.type,
-          url: event.url,
-          locale: event.locale,
-          images: event.images,
-          salesStart: event.sales.public.startDateTime,
-          salesEnd: event.sales.public.endDateTime,
-          localDate: localDate ? new Date(localDate) : null,
-          timezone: event.dates.timezone,
-          statusCode: event.dates.status.code,
-          category: event.classifications[0]?.segment?.name || '',
-          venue: {
-            connect: { id: venueId }  // Ensure that venueId is correctly assigned
-          },
-          classifications: event.classifications
-        },
-      });
-    }
-    console.log("Successfully synced events and venues");
+    await syncEvents(eventsData);
   } catch (error) {
     console.error('Error syncing events and venues:', error);
   }
 }
+
 
 async function syncVenues(venues) {
   if (!Array.isArray(venues)) {
@@ -88,30 +51,30 @@ async function syncVenues(venues) {
       await prisma.venue.upsert({
         where: { id: venue.id },
         update: {
-          name: venue.name,
-          postalCode: venue.postalCode,
-          timezone: venue.timezone,
-          city: venue.city.name,
-          state: venue.state.stateCode,
-          country: venue.country.countryCode,
-          address: venue.address.line1,
+          name: venue.name || null,
+          postalCode: venue.postalCode || null,
+          timezone: venue.timezone || null,
+          city: venue.city.name || null,
+          state: venue.state.stateCode || null,
+          country: venue.country.countryCode || null,
+          address: venue.address.line1 || null,
           location: {
-            longitude: venue.location.longitude,
-            latitude: venue.location.latitude
+            longitude: venue.location.longitude || null,
+            latitude: venue.location.latitude || null
           },
         },
         create: {
           id: venue.id,
-          name: venue.name,
-          postalCode: venue.postalCode,
-          timezone: venue.timezone,
-          city: venue.city.name,
-          state: venue.state.stateCode,
-          country: venue.country.countryCode,
-          address: venue.address.line1,
+          name: venue.name || null,
+          postalCode: venue.postalCode  || null,
+          timezone: venue.timezone || null,
+          city: venue.city.name || null,
+          state: venue.state.stateCode || null,
+          country: venue.country.countryCode || null,
+          address: venue.address.line1 || null,
           location: {
-            longitude: venue.location.longitude,
-            latitude: venue.location.latitude
+            longitude: venue.location.longitude || null,
+            latitude: venue.location.latitude || null
           },
         },
       });
@@ -121,4 +84,63 @@ async function syncVenues(venues) {
   }
 }
 
-module.exports = { syncEvents };
+async function syncEvents(eventsData) {
+  if (!Array.isArray(eventsData)) {
+    throw new TypeError('Expected an array of venues');
+  }
+
+  // Sync Events
+  for (const event of eventsData) {
+    const localDate = event.dates?.start?.localDate
+        ? `${event.dates.start.localDate}T00:00:00Z`
+        : new Date().toISOString();
+    const venueId = event._embedded.venues && event._embedded.venues[0]?.id || null;
+
+    try {
+      await prisma.event.upsert({
+        where: { id: event.id },
+        update: {
+          name: event.name || null,
+          type: event.type || null,
+          url: event.url || null,
+          locale: event.locale || null,
+          images: event.images || null,
+          salesStart: event.sales.public.startDateTime || null,
+          salesEnd: event.sales.public.endDateTime || null,
+          localDate: localDate ? new Date(localDate) : null,
+          localTime : event.dates?.start?.localTime || null,
+          timezone: event.dates.timezone || null,
+          statusCode: event.dates.status.code || null,
+          category: event.classifications[0]?.segment?.name || '',
+          venue: {
+            connect: { id: venueId }  // Ensure that venueId is correctly assigned
+          },
+          classifications: event.classifications || null
+        },
+        create: {
+          id: event.id,
+          name: event.name || null,
+          type: event.type || null,
+          url: event.url || null,
+          locale: event.locale || null,
+          images: event.images || null,
+          salesStart: event.sales.public.startDateTime || null,
+          salesEnd: event.sales.public.endDateTime || null,
+          localDate: localDate ? new Date(localDate) : null,
+          localTime : event.dates?.start?.localTime || null,
+          timezone: event.dates.timezone || null,
+          statusCode: event.dates.status.code || null,
+          category: event.classifications[0]?.segment?.name || '',
+          venue: {
+            connect: { id: venueId }  // Ensure that venueId is correctly assigned
+          },
+          classifications: event.classifications || null
+        },
+      });
+    } catch (error) {
+      console.error(`Error syncing venue ${venueId}:`, error);
+    }
+  }
+}
+
+module.exports = { syncEventsAndVenues };
