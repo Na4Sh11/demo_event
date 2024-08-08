@@ -253,6 +253,10 @@ exports.updateEvent = async (req, res) => {
   }
 };
 
+exports.getEventsByUserID = (req, res) => {
+  
+}
+
 
 // Ping endpoint for server health check
 exports.ping = (req, res) => {
