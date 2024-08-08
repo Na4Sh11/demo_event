@@ -1,18 +1,9 @@
-// Import necessary modules
-const { expressjwt: jwt } = require('express-jwt'); // Note the change here
-const jwksRsa = require('jwks-rsa');
+const { auth } = require('express-oauth2-jwt-bearer');
 
-// Middleware for validating JWTs using Auth0
-const authMiddleware = jwt({
-  secret: jwksRsa.expressJwtSecret({
-    cache: true,
-    rateLimit: true,
-    jwksRequestsPerMinute: 5,
-    jwksUri: `https://${process.env.AUTH0_DOMAIN}/.well-known/jwks.json`
-  }),
+const checkJwt = auth({
   audience: process.env.AUTH0_AUDIENCE,
-  issuer: `https://${process.env.AUTH0_DOMAIN}/`,
-  algorithms: ['RS256']
+  issuerBaseURL: process.env.AUTH0_ISSUER,
+  tokenSigningAlg: 'RS256'
 });
 
-module.exports = authMiddleware;
+module.exports = { checkJwt };

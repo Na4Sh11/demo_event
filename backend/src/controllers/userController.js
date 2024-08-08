@@ -5,11 +5,25 @@ const prisma = new PrismaClient();
 // Ping endpoint for server health check
 exports.ping = (req, res) => {
   try {
+
     res.status(200).json({ message: 'Server is up and running!' });
   } catch (err) {
+    console.error('Failed to ping server:', err);
     res.status(500).json({ error: 'Failed to ping server.' });
   }
 };
+
+
+exports.getAuthentication = (req, res) => {
+  try {
+    
+    console.log('Request Headers:', req.headers);
+    res.status(200).json({ message: 'Authentication is good!' });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to authenticate.' });
+  }
+};
+
 
 // Sign Up
 exports.signUp = async (req, res) => {
