@@ -8,15 +8,17 @@ datasource db {
 }
 
 model User {
-  id           Int         @id @default(autoincrement())
-  auth0_id     String      @unique
-  email        String      @unique
-  name         String
-  created_at   DateTime    @default(now())
-  organization String?
-  password     String
-  favorites    Json? // Use JSON type to store array of strings and integers
-  eventsPosted Event[]     @relation("PostedEvents")
+  id             Int         @id @default(autoincrement())
+  auth0_id       String      @unique
+  email          String      @unique
+  name           String
+  created_at     DateTime    @default(now())
+  organization   String?
+  password       String
+  favorites      Json? // Use JSON type to store array of strings and integers
+  eventsPosted   Event[]     @relation("PostedEvents")
+  eventsPostedId Json?
+  UserEvent      UserEvent[]
 
   @@map("users")
 }
