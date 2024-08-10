@@ -1,4 +1,5 @@
 const { syncEventsAndVenues } = require('../util/syncAPI');
+const { updateExpiredEvents } = require('../util/eventUtils');
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 
@@ -11,6 +12,7 @@ exports.getAllEvents = async (req, res) => {
 
     // Sync events and venues with the provided filters
     await syncEventsAndVenues(filters);
+    console.log("events updated = ",await updateExpiredEvents());
 
     // Build Prisma query filter based on the request filters
     const venueFilters = {};
@@ -162,6 +164,8 @@ exports.createEvent = async (req, res) => {
           statusCode: event.dates?.status.code || null,
           category: event.classifications[0]?.segment?.name || '',
           postedById: event.userId,
+          no_of_tickets : event.no_of_tickets,
+          price : event.price,
           venue: {
             connect: { id: venueId }  // Ensure that venueId is correctly assigned
           },
@@ -239,6 +243,8 @@ exports.updateEvent = async (req, res) => {
         statusCode: event.dates?.status.code || null,
         category: event.classifications[0]?.segment?.name || '',
         postedById: event.userId, // Optional, if you want to update the user
+        no_of_tickets : event.no_of_tickets,
+        price : event.price,  
         venue: {
           connect: { id: venueId } // Ensure that venueId is correctly assigned
         },

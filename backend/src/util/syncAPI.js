@@ -5,7 +5,6 @@ const prisma = new PrismaClient();
 
 async function syncEventsAndVenues(filters) {
   try {
-    console.log("filters = {}", filters);
     
     // Construct the API URL with filters
     let url = `https://app.ticketmaster.com/discovery/v2/events.json?apikey=AmsLFYVpfYKZOBTRU7vxz9Z2Fs3hEC8m`;
@@ -16,8 +15,6 @@ async function syncEventsAndVenues(filters) {
         url += `&${encodeURIComponent(key)}=${encodeURIComponent(value)}`;
       }
     }
-
-    console.log("here = {}", url);
     
     const response = await axios.get(url);
     const eventsData = response.data._embedded.events;
