@@ -79,18 +79,35 @@ exports.getAllEvents = async (req, res) => {
 
 // Get event by ID
 exports.getEventById = async (req, res) => {
-  console.log("here in ID = {}", req.params.id);
+  console.log("here in ID =", req.params.id);
   try {
+    // Fetch the event details
     const event = await prisma.event.findUnique({
       where: { id: req.params.id }
     });
+ 
     if (event) {
-      res.json(event);
+      let venue = null;
+ 
+      // Fetch the venue details if venueId is present
+      if (event.venueId) {
+        venue = await prisma.venue.findUnique({
+          where: { id: event.venueId }
+        });
+      }
+ 
+      // Combine event and venue details
+      const response = {
+        ...event,
+        venue: venue || { location: 'No venue Found' }
+      };
+ 
+      res.json(response);
     } else {
       res.status(404).json({ error: 'Event not found.' });
     }
   } catch (err) {
-    console.log("Error in fetching event ", err);
+    console.log("Error in fetching event", err);
     res.status(500).json({ error: 'Failed to fetch event.' });
   }
 };

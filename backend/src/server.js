@@ -20,5 +20,5 @@ app.get('/ping', (req, res) => {
 
 // app.use(authMiddleware); // Apply authentication middleware, commentted until Auth0 is completed
 
-const PORT = process.env.PORT || 5000;
+const PORT = 5001;
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
