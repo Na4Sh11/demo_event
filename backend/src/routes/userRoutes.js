@@ -11,6 +11,9 @@ router.get('/authentication', checkJwt, userController.getAuthentication);
 // User Operations
 router.post('/signup', userController.signUp);
 router.post('/login', userController.login);
+router.post('/addToFavourites', userController.addEventToFavorites);
+router.post('/buyTickets', userController.buyTickets);
+router.post('/updateUserEventStatus', userController.updateUserEventStatus);
 router.get('/:id', userController.viewUser);
 router.put('/:id', userController.updateUser);
 router.delete('/:id', userController.deleteUser);

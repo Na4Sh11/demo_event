@@ -135,3 +135,181 @@ exports.deleteUser = async (req, res) => {
     res.status(500).json({ error: 'Failed to delete user.' });
   }
 };
+
+/**
+ * Add an event to the user's favorites.
+ * @param {number} userId - The ID of the user.
+ * @param {string|number} eventId - The ID of the event to add to favorites.
+ * @returns {Promise<void>}
+ */
+exports.addEventToFavorites = async (req, res) => {
+  try {
+    const { userId, eventId } = req.body;
+
+    // Validate inputs
+    if (typeof userId !== 'number' || typeof eventId !== 'string') {
+      return res.status(400).json({ error: 'Invalid input' });
+    }
+
+    // Fetch the user to get current favorites
+    const user = await prisma.user.findUnique({
+      where: { id: userId }
+    });
+
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    // Parse the favorites as an array
+    const favorites = user.favorites ? JSON.parse(user.favorites) : [];
+
+    // Check if the event is already in favorites
+    if (favorites.includes(eventId)) {
+      return res.status(200).json({ message: 'Event is already in favorites' });
+    }
+
+    // Add the event to favorites
+    favorites.push(eventId);
+
+    // Update the user's favorites
+    await prisma.user.update({
+      where: { id: userId },
+      data: { favorites: favorites },
+    });
+
+    return res.status(200).json({ message: 'Event added to favorites' });
+  } catch (err) {
+    console.error('Error adding event to favorites:', err);
+    return res.status(500).json({ error: 'Failed to add event to favorites' });
+  }
+};
+
+/**
+ * Handle ticket purchase for an event by a user.
+ * @param {Object} req - The request object containing user ID, event ID, and ticket count.
+ * @param {Object} res - The response object for sending responses.
+ */
+exports.buyTickets = async (req, res) => {
+  try {
+    const { userId, eventId, noOfTickets } = req.body;
+
+    // Validate inputs
+    if (typeof userId !== 'number' || typeof eventId !== 'string' || typeof noOfTickets !== 'number') {
+      return res.status(400).json({ error: 'Invalid input' });
+    }
+
+    // Fetch event details
+    const event = await prisma.event.findUnique({
+      where: { id: eventId }
+    });
+
+    if (!event) {
+      return res.status(404).json({ error: 'Event not found' });
+    }
+
+    // Check if the event is on sale
+    if (event.statusCode !== 'onsale') {
+      return res.status(400).json({ error: 'Event is not on sale' });
+    }
+
+    // Check ticket availability if it's defined
+    if (event.no_of_tickets !== null && event.no_of_tickets !== undefined) {
+      if (event.no_of_tickets < noOfTickets) {
+        return res.status(400).json({ error: 'Not enough tickets available' });
+      }
+    }
+
+    // Begin transaction
+    await prisma.$transaction(async (prisma) => {
+      
+      let price = 0;
+      console.log("events = {}", event);
+      console.log("price = ={}", event.price);
+      console.log("noOfTickets = = {}", event.no_of_tickets);
+      // Update event tickets if no_of_tickets is defined
+      if (event.no_of_tickets !== null && event.no_of_tickets !== undefined) {
+        await prisma.event.update({
+          where: { id: eventId },
+          data: { no_of_tickets: event.no_of_tickets - noOfTickets },
+        });
+        console.log("here");
+        price = event.price * noOfTickets;
+      }
+
+      console.log("here = = {}", price);
+
+      // Create UserEvent entry
+      const userEvent = await prisma.userEvent.create({
+        data: {
+          user_id: userId,
+          event_id: eventId,
+          status: 'purchased',
+          no_of_tickets: noOfTickets,
+          total_price: price, // Assuming no price calculation for simplicity
+        },
+      });
+
+    });
+
+    return res.status(200).json({ message: 'Tickets purchased successfully' });
+  } catch (err) {
+    console.error('Error buying tickets:', err);
+    return res.status(500).json({ error: 'Failed to buy tickets' });
+  } finally {
+    await prisma.$disconnect();
+  }
+};
+
+/**
+ * Update the status of a UserEvent entry.
+ * @param {Object} req - The request object containing user ID, event ID, and new status.
+ * @param {Object} res - The response object for sending responses.
+ */
+exports.updateUserEventStatus = async (req, res) => {
+  try {
+    const {id, userId, eventId, newStatus } = req.body;
+
+    // Validate inputs
+    if (typeof userId !== 'number' || typeof eventId !== 'string' || !['going', 'not-going'].includes(newStatus)) {
+      return res.status(400).json({ error: 'Invalid input' });
+    }
+
+    // Fetch the event details
+    const event = await prisma.event.findUnique({
+      where: { id: eventId },
+      select: { statusCode: true },
+    });
+
+    if (!event) {
+      return res.status(404).json({ error: 'Event not found' });
+    }
+
+    // Check if the event is expired
+    if (event.statusCode === 'expired') {
+      return res.status(400).json({ error: 'Cannot update status for an expired event' });
+    }
+
+    // Update the UserEvent status
+    const userEvent = await prisma.userEvent.updateMany({
+      where: {
+        id: id,
+        user_id: userId,
+        event_id: eventId
+      },
+      data: {
+        status: newStatus,
+      },
+    });
+
+    if (userEvent.count === 0) {
+      return res.status(404).json({ error: 'UserEvent not found or status already updated' });
+    }
+
+    return res.status(200).json({ message: 'UserEvent status updated successfully' });
+  } catch (err) {
+    console.error('Error updating UserEvent status:', err);
+    return res.status(500).json({ error: 'Failed to update UserEvent status' });
+  } finally {
+    await prisma.$disconnect();
+  }
+};
