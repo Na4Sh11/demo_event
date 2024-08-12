@@ -185,135 +185,41 @@ exports.addEventToFavorites = async (req, res) => {
   }
 };
 
-// /**
-//  * Handle ticket purchase for an event by a user.
-//  * @param {Object} req - The request object containing user ID, event ID, and ticket count.
-//  * @param {Object} res - The response object for sending responses.
-//  */
-// exports.buyTickets = async (req, res) => {
-//   try {
-//     const { userId, eventId, noOfTickets } = req.body;
-
-//     // Validate inputs
-//     if (typeof userId !== 'number' || typeof eventId !== 'string' || typeof noOfTickets !== 'number') {
-//       return res.status(400).json({ error: 'Invalid input' });
-//     }
-
-//     // Fetch event details
-//     const event = await prisma.event.findUnique({
-//       where: { id: eventId }
-//     });
-
-//     if (!event) {
-//       return res.status(404).json({ error: 'Event not found' });
-//     }
-
-//     // Check if the event is on sale
-//     if (event.statusCode !== 'onsale') {
-//       return res.status(400).json({ error: 'Event is not on sale' });
-//     }
-
-//     // Check ticket availability if it's defined
-//     if (event.no_of_tickets !== null && event.no_of_tickets !== undefined) {
-//       if (event.no_of_tickets < noOfTickets) {
-//         return res.status(400).json({ error: 'Not enough tickets available' });
-//       }
-//     }
-
-//     // Begin transaction
-//     await prisma.$transaction(async (prisma) => {
-      
-//       let price = 0;
-//       console.log("events = {}", event);
-//       console.log("price = ={}", event.price);
-//       console.log("noOfTickets = = {}", event.no_of_tickets);
-//       // Update event tickets if no_of_tickets is defined
-//       if (event.no_of_tickets !== null && event.no_of_tickets !== undefined) {
-//         await prisma.event.update({
-//           where: { id: eventId },
-//           data: { no_of_tickets: event.no_of_tickets - noOfTickets },
-//         });
-//         console.log("here");
-//         price = event.price * noOfTickets;
-//       }
-
-//       console.log("here = = {}", price);
-
-//       // Create UserEvent entry
-//       const userEvent = await prisma.userEvent.create({
-//         data: {
-//           user_id: userId,
-//           event_id: eventId,
-//           status: 'purchased',
-//           no_of_tickets: noOfTickets,
-//           total_price: price, // Assuming no price calculation for simplicity
-//         },
-//       });
-
-//       const venue = await prisma.venue.findUnique({
-//         where: { id: event.venueId }
-//       });
-  
-//       const location = venue ? `${venue.city}, ${venue.state}` : 'No venue Found';
-
-//       // Send confirmation email
-//       const purchaseDetails = {
-//         eventName: event.name,
-//         location: location,
-//         localDate: event.localDate,
-//         localTime: event.localTime,
-//         numberOfTickets: noOfTickets,
-//         totalPrice: event.price * noOfTickets,
-//       };
-
-//       // Fetch user's email
-//       const user = await prisma.user.findUnique({ where: { id: userId }, select: { email: true } });
-
-//       // if (user) {
-//       //   await sendPurchaseConfirmationEmail(user.email, purchaseDetails);
-//       // }
-
-//     });
-
-//     return res.status(200).json({ message: 'Tickets purchased successfully' });
-//   } catch (err) {
-//     console.error('Error buying tickets:', err);
-//     return res.status(500).json({ error: 'Failed to buy tickets' });
-//   } finally {
-//     await prisma.$disconnect();
-//   }
-// };
-
+/**
+ * Handle ticket purchase for an event by a user.
+ * @param {Object} req - The request object containing user ID, event ID, and ticket count.
+ * @param {Object} res - The response object for sending responses.
+ */
 exports.buyTickets = async (req, res) => {
   try {
     const { userId, eventId, noOfTickets } = req.body;
- 
+
     // Validate inputs
     if (typeof userId !== 'number' || typeof eventId !== 'string' || typeof noOfTickets !== 'number') {
       return res.status(400).json({ error: 'Invalid input' });
     }
- 
+
     // Fetch event details
     const event = await prisma.event.findUnique({
       where: { id: eventId }
     });
- 
+
     if (!event) {
       return res.status(404).json({ error: 'Event not found' });
     }
- 
+
     // Check if the event is on sale
     if (event.statusCode !== 'onsale') {
       return res.status(400).json({ error: 'Event is not on sale' });
     }
- 
+
     // Check ticket availability if it's defined
     if (event.no_of_tickets !== null && event.no_of_tickets !== undefined) {
       if (event.no_of_tickets < noOfTickets) {
         return res.status(400).json({ error: 'Not enough tickets available' });
       }
     }
- 
+
     // Begin transaction
     await prisma.$transaction(async (prisma) => {
       
@@ -330,9 +236,9 @@ exports.buyTickets = async (req, res) => {
         console.log("here");
         price = event.price * noOfTickets;
       }
- 
+
       console.log("here = = {}", price);
- 
+
       // Create UserEvent entry
       const userEvent = await prisma.userEvent.create({
         data: {
@@ -343,9 +249,32 @@ exports.buyTickets = async (req, res) => {
           total_price: price, // Assuming no price calculation for simplicity
         },
       });
- 
+
+      const venue = await prisma.venue.findUnique({
+        where: { id: event.venueId }
+      });
+  
+      const location = venue ? `${venue.city}, ${venue.state}` : 'No venue Found';
+
+      // Send confirmation email
+      const purchaseDetails = {
+        eventName: event.name,
+        location: location,
+        localDate: event.localDate,
+        localTime: event.localTime,
+        numberOfTickets: noOfTickets,
+        totalPrice: event.price * noOfTickets,
+      };
+
+      // Fetch user's email
+      const user = await prisma.user.findUnique({ where: { id: userId }, select: { email: true } });
+
+      // if (user) {
+      //   await sendPurchaseConfirmationEmail(user.email, purchaseDetails);
+      // }
+
     });
- 
+
     return res.status(200).json({ message: 'Tickets purchased successfully' });
   } catch (err) {
     console.error('Error buying tickets:', err);
@@ -354,7 +283,6 @@ exports.buyTickets = async (req, res) => {
     await prisma.$disconnect();
   }
 };
- 
 
 /**
  * Update the status of a UserEvent entry.
