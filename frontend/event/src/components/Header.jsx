@@ -3,7 +3,7 @@ import { useAuth0 } from '@auth0/auth0-react';
 
 const Header = () => {
   const { loginWithRedirect, logout, isAuthenticated } = useAuth0();
-
+  console.log(isAuthenticated);
   return (
     <header>
       <h1>Local Events Finder</h1>

@@ -85,23 +85,23 @@ exports.getEventById = async (req, res) => {
     const event = await prisma.event.findUnique({
       where: { id: req.params.id }
     });
- 
+
     if (event) {
       let venue = null;
- 
+
       // Fetch the venue details if venueId is present
       if (event.venueId) {
         venue = await prisma.venue.findUnique({
           where: { id: event.venueId }
         });
       }
- 
+
       // Combine event and venue details
       const response = {
         ...event,
         venue: venue || { location: 'No venue Found' }
       };
- 
+
       res.json(response);
     } else {
       res.status(404).json({ error: 'Event not found.' });
@@ -111,6 +111,7 @@ exports.getEventById = async (req, res) => {
     res.status(500).json({ error: 'Failed to fetch event.' });
   }
 };
+
 
 exports.getVenueById = async(req, res) => {
   try {
@@ -128,6 +129,7 @@ exports.getVenueById = async(req, res) => {
 };
 
 // Create a new event
+// Create a new event
 exports.createEvent = async (req, res) => {
   const { event, venue } = req.body;
   let venueId;
@@ -135,9 +137,8 @@ exports.createEvent = async (req, res) => {
   const localDate = event.dates?.start?.localDate
         ? `${event.dates.start.localDate}T00:00:00Z`
         : new Date().toISOString();
-    
 
-  if(venue) {
+  if (venue) {
     venueId = venue.id;
 
     try {
@@ -160,42 +161,68 @@ exports.createEvent = async (req, res) => {
     } catch (error) {
       console.error('Venue Exists');
     }
-  }
-  else  
+  } else {
     venueId = req.body.venueId;
+  }
+
+  console.log(event.userId);
 
   try {
-      const createdEvent = await prisma.event.create({
-        data: {
-          id: event.id,
-          name: event.name || null,
-          type: event.type || null,
-          url: event.url || null,
-          locale: event.locale || null,
-          images: event.images || null,
-          salesStart: event.sales.public.startDateTime || null,
-          salesEnd: event.sales.public.endDateTime || null,
-          localDate: localDate ? new Date(localDate) : null,
-          localTime : event.dates?.start?.localTime || null,
-          timezone: event.dates?.timezone || null,
-          statusCode: event.dates?.status.code || null,
-          category: event.classifications[0]?.segment?.name || '',
-          postedById: event.userId,
-          no_of_tickets : event.no_of_tickets,
-          price : event.price,
-          venue: {
-            connect: { id: venueId }  // Ensure that venueId is correctly assigned
-          },
-          classifications: event.classifications || null
+    const createdEvent = await prisma.event.create({
+      data: {
+        id: event.id,
+        name: event.name || null,
+        type: event.type || null,
+        url: event.url || null,
+        locale: event.locale || null,
+        images: event.images || null,
+        salesStart: event.sales.public.startDateTime || null,
+        salesEnd: event.sales.public.endDateTime || null,
+        localDate: localDate ? new Date(localDate) : null,
+        localTime: event.dates?.start?.localTime || null,
+        timezone: event.dates?.timezone || null,
+        statusCode: event.dates?.status.code || null,
+        category: event.classifications[0]?.segment?.name || '',
+        posted_by: {
+          connect: { id: event.userId } // Connect user based on userId
         },
+        no_of_tickets: event.no_of_tickets,
+        price: event.price,
+        venue: {
+          connect: { id: venueId } // Ensure that venueId is correctly assigned
+        },
+        classifications: event.classifications || null
+      },
+    });
+
+    // Update the user's eventsPosted column
+    // Add event ID to the user's eventsPosted JSON
+    if (event.userId) {
+      // Fetch the current user data
+      const user = await prisma.user.findUnique({
+        where: { id: event.userId },
       });
-      
-    res.status(200).json({ message: 'Event created', createdEvent });
-    } catch (error) {
-      console.error(`Error syncing venue ${venueId}:`, error);
-      res.status(500).json({ error: 'Event with same ID exists' });
+
+      if (user) {
+        // Update the user's eventsPosted JSON
+        const updatedEventsPosted = user.eventsPostedId ? JSON.parse(user.eventsPostedId) : [];
+        updatedEventsPosted.push(createdEvent.id);
+
+        await prisma.user.update({
+          where: { id: event.userId },
+          data: {
+            eventsPostedId: JSON.stringify(updatedEventsPosted)
+          }
+        });
+      }
     }
+    res.status(200).json({ message: 'Event created', createdEvent });
+  } catch (error) {
+    console.error(`Error syncing venue ${venueId}:`, error);
+    res.status(500).json({ error: 'Event with same ID exists' });
+  }
 };
+
 
 exports.updateEvent = async (req, res) => {
   const { event, venue } = req.body;
@@ -298,4 +325,3 @@ exports.getAuthentication = (req, res) => {
     res.status(500).json({ error: 'Failed to authenticate.' });
   }
 };
-
