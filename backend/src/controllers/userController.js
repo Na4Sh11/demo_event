@@ -1,6 +1,7 @@
 const { PrismaClient } = require('@prisma/client');
 const bcrypt = require('bcrypt');
 const prisma = new PrismaClient();
+const { sendPurchaseConfirmationEmail } = require('../util/emailUtils');
 
 // Ping endpoint for server health check
 exports.ping = (req, res) => {
@@ -254,6 +255,29 @@ exports.buyTickets = async (req, res) => {
         },
       });
 
+      const venue = await prisma.venue.findUnique({
+        where: { id: event.venueId }
+      });
+  
+      const location = venue ? `${venue.city}, ${venue.state}` : 'No venue Found';
+
+      // Send confirmation email
+      const purchaseDetails = {
+        eventName: event.name,
+        location: location,
+        localDate: event.localDate,
+        localTime: event.localTime,
+        numberOfTickets: noOfTickets,
+        totalPrice: event.price * noOfTickets,
+      };
+
+      // Fetch user's email
+      const user = await prisma.user.findUnique({ where: { id: userId }, select: { email: true } });
+
+      if (user) {
+        await sendPurchaseConfirmationEmail(user.email, purchaseDetails);
+      }
+
     });
 
     return res.status(200).json({ message: 'Tickets purchased successfully' });
@@ -320,3 +344,67 @@ exports.updateUserEventStatus = async (req, res) => {
     await prisma.$disconnect();
   }
 };
+
+exports.getUserHistory = async (req, res) => {
+  const {userId} = req.body;
+  try {
+    // Fetch all UserEvent records associated with the user
+    const userEvents = await prisma.userEvent.findMany({
+      where: { user_id: userId },
+      include: {
+        event: true // Include event details in the result
+      }
+    });
+
+    if (userEvents.length > 0) {
+      res.json(userEvents);
+    } else {
+      res.status(404).json({ error: 'No history found for this user.' });
+    }
+  } catch (err) {
+    console.log("Error in fetching user history", err);
+    res.status(500).json({ error: 'Failed to fetch user history.' });
+  }
+};
+
+// Get events posted by a user
+exports.getEventsPosted = async (req, res) => {
+  const {userId} = req.body;
+
+  try {
+    // Fetch the user's eventsPosted JSON field
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { eventsPostedId: true } // Fetch only the eventsPosted field
+    });
+
+    if (!user) {
+      return res.status(404).json({ error: 'User not found.' });
+    }
+
+    // Parse eventsPosted JSON field
+    const eventsPostedIds = user.eventsPostedId ? JSON.parse(user.eventsPostedId) : [];
+
+    // If no events are posted, return an empty array
+    if (eventsPostedIds.length === 0) {
+      return res.json([]);
+    }
+
+    // Fetch details of the events
+    const events = await prisma.event.findMany({
+      where: {
+        id: {
+          in: eventsPostedIds
+        }
+      }
+    });
+
+    // Return the events details as a response
+    res.json(events);
+
+  } catch (error) {
+    console.error('Error fetching events posted by user:', error);
+    res.status(500).json({ error: 'Failed to fetch events.' });
+  }
+};
+
