@@ -1,25 +1,35 @@
 import React, { useEffect, useState } from 'react';
-import axios from 'axios';
 import { useAuth0 } from '@auth0/auth0-react';
 import moment from 'moment';
-import { useNavigate } from 'react-router-dom'; // Import useNavigate
+import { useNavigate } from 'react-router-dom';
+import { getUserById } from '../utils/api'; // Adjust path as necessary
+import authConfig from '../auth_config.json';
 
 const ProfilePage = () => {
-  const { user, isAuthenticated } = useAuth0();
+  const { user, isAuthenticated, getAccessTokenSilently } = useAuth0();
   const [userData, setUserData] = useState(null);
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(true);
-  const navigate = useNavigate(); // Initialize useNavigate
+  const navigate = useNavigate();
+  const requestedScopes = ["openid", "profile", "email"];
 
   useEffect(() => {
-    if (isAuthenticated) {
-      fetchUserData();
+    if (isAuthenticated && user) {
+      fetchUserData(user.sub);
     }
-  }, [isAuthenticated]);
+  }, [isAuthenticated, user]);
 
-  const fetchUserData = async () => {
+  const fetchUserData = async (auth0Id) => {
     try {
-      const response = await axios.get(`http://localhost:5001/users/1`);
+      const token = await getAccessTokenSilently({
+        authorizationParams: {
+          audience: authConfig.REACT_APP_AUTH0_AUDIENCE,
+          scope: requestedScopes.join(" "),
+        },
+      });
+
+      const response = await getUserById(auth0Id, token);
+      console.log('Fetched user data:', response.data);
       setUserData(response.data.user);
     } catch (err) {
       setError('Failed to fetch user data');
@@ -44,7 +54,7 @@ const ProfilePage = () => {
         newStatus: newStatus,
       });
       alert('Status updated successfully');
-      fetchUserData(); // Refresh user data after status update
+      fetchUserData(userData.id); // Refresh user data after status update
     } catch (err) {
       console.error('Error updating status:', err);
       alert('Failed to update status.');
@@ -52,7 +62,7 @@ const ProfilePage = () => {
   };
 
   const handleCreateEvent = () => {
-    navigate('/create-event'); // Navigate to Create Event page
+    navigate('/create-event');
   };
 
   if (loading) return <div>Loading...</div>;
@@ -61,18 +71,18 @@ const ProfilePage = () => {
   return (
     <div>
       <h2>Profile Page</h2>
-      {userData && (
+      {userData ? (
         <div>
           <p><strong>Name:</strong> {userData.name}</p>
           <p><strong>Email:</strong> {userData.email}</p>
-          <p><strong>Mobile:</strong> {userData.mobile}</p>
+          <p><strong>Organization:</strong> {userData.organization}</p>
 
-          <button onClick={handleCreateEvent}>Create Event</button> {/* Create Event button */}
+          <button onClick={handleCreateEvent}>Create Event</button>
 
           <h3>Favorites</h3>
           <ul>
             {userData.favorites && userData.favorites.map((eventId) => (
-              <li key={eventId}>{eventId}</li> // Assuming eventId represents the event name
+              <li key={eventId}>{eventId}</li>
             ))}
           </ul>
 
@@ -80,7 +90,7 @@ const ProfilePage = () => {
           <ul>
             {userData.events && userData.events.map((event) => (
               <li key={event.event_id}>
-                {event.event_name} - {event.status} 
+                {event.event_name} - {event.status}
                 <button onClick={() => handleStatusChange(event.event_id, 'going', event.event_date)}>Mark as Going</button>
                 <button onClick={() => handleStatusChange(event.event_id, 'not-going', event.event_date)}>Mark as Not Going</button>
                 {moment().isAfter(event.event_date) && (
@@ -90,6 +100,8 @@ const ProfilePage = () => {
             ))}
           </ul>
         </div>
+      ) : (
+        <div>No user data available.</div>
       )}
     </div>
   );

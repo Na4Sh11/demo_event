@@ -184,7 +184,7 @@ exports.createEvent = async (req, res) => {
         statusCode: event.dates?.status.code || null,
         category: event.classifications[0]?.segment?.name || '',
         posted_by: {
-          connect: { id: event.userId } // Connect user based on userId
+          connect: { auth0_id: event.userId } // Connect user based on userId
         },
         no_of_tickets: event.no_of_tickets,
         price: event.price,
@@ -209,7 +209,7 @@ exports.createEvent = async (req, res) => {
         updatedEventsPosted.push(createdEvent.id);
 
         await prisma.user.update({
-          where: { id: event.userId },
+          where: { auth0_id: event.userId },
           data: {
             eventsPostedId: JSON.stringify(updatedEventsPosted)
           }

@@ -43,8 +43,8 @@ model Event {
   updated_at      DateTime    @updatedAt
   price           Int?
   no_of_tickets   Int?
-  postedById      Int? // Made optional
-  posted_by       User?       @relation("PostedEvents", fields: [postedById], references: [id])
+  postedById      String? // Made optional
+  posted_by       User?       @relation("PostedEvents", fields: [postedById], references: [auth0_id])
   UserEvents      UserEvent[] @relation("EventUserEvents")
   classifications Json // Store JSON array for classifications
 
@@ -68,14 +68,14 @@ model Venue {
 
 model UserEvent {
   id            Int      @id @default(autoincrement())
-  user_id       Int
+  user_id       String
   event_id      String
   status        String
   created_at    DateTime @default(now())
   updated_at    DateTime @updatedAt
   no_of_tickets Int?
   total_price   Int?
-  user          User     @relation(fields: [user_id], references: [id])
+  user          User     @relation(fields: [user_id], references: [auth0_id])
   event         Event    @relation("EventUserEvents", fields: [event_id], references: [id])
 
   @@map("user_events")

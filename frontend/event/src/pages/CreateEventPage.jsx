@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
 import { useAuth0 } from '@auth0/auth0-react';
 import { useNavigate } from 'react-router-dom';
+import { getUserById } from '../utils/api'; // Import the global API function
+import authConfig from '../auth_config.json';
+import axios from 'axios';
 
 const CreateEventPage = () => {
-  const { user, isAuthenticated } = useAuth0();
+  const { user, isAuthenticated, getAccessTokenSilently } = useAuth0();
   const [eventName, setEventName] = useState('');
   const [eventDate, setEventDate] = useState('');
   const [eventLocation, setEventLocation] = useState('');
@@ -24,7 +26,14 @@ const CreateEventPage = () => {
 
   const fetchUserData = async () => {
     try {
-      const response = await axios.get(`http://localhost:5001/users/1`);
+      const token = await getAccessTokenSilently({
+        authorizationParams: {
+          audience: authConfig.REACT_APP_AUTH0_AUDIENCE,
+          scope: ["openid", "profile", "email"].join(" "),
+        },
+      });
+
+      const response = await getUserById(user.sub, token);
       setUserData(response.data.user);
     } catch (err) {
       setError('Failed to fetch user data');

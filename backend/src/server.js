@@ -19,6 +19,8 @@ app.get('/ping', (req, res) => {
   res.send('Server is up and running');
 });
 
+
+
 //app.use(authMiddleware); // Apply authentication middleware, commentted until Auth0 is completed
 
 const PORT = 5001;
