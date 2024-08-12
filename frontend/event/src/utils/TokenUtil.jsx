@@ -11,18 +11,15 @@ class TokenUtil {
     }
   
     setToken(token) {
-      console.log("Setting token:", token);
       this.token = token;
-      console.log("Stored token:", this.token);
     }
   
     getToken() {
-      console.log("Retrieving token:", this.token);
+    //   console.log("Retrieving token:", this.token);
       return this.token;
     }
   
     clearToken() {
-      console.log("Clearing token");
       this.token = null;
     }
   }

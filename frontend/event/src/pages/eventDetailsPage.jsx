@@ -1,78 +1,160 @@
-import React, { useEffect, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import axios from 'axios';
+import React, { useState, useEffect } from 'react';
 import { useAuth0 } from '@auth0/auth0-react';
-import EventModal from '../components/EventModal';
+import { useNavigate } from 'react-router-dom';
+import { getUserById, createEvent } from '../utils/api'; // Import the global API function
+import authConfig from '../auth_config.json';
 
-const EventDetailsPage = () => {
-  const { eventID } = useParams();
+
+const CreateEventPage = () => {
+  const { user, isAuthenticated, getAccessTokenSilently } = useAuth0();
+  const [eventName, setEventName] = useState('');
+  const [eventDate, setEventDate] = useState('');
+  const [eventLocation, setEventLocation] = useState('');
+  const [eventDescription, setEventDescription] = useState('');
+  const [noOfTickets, setNoOfTickets] = useState('');
+  const [price, setPrice] = useState('');
+  const [error, setError] = useState(null);
+  const [success, setSuccess] = useState(false);
   const navigate = useNavigate();
-  const { isAuthenticated, loginWithRedirect } = useAuth0();
-  const [event, setEvent] = useState(null);
-  const [modalIsOpen, setModalIsOpen] = useState(false);
+  const [userData, setUserData] = useState(null);
 
   useEffect(() => {
-    const fetchEventDetails = async () => {
-      try {
-        const response = await axios.get(`http://localhost:5001/events/${eventID}`);
-        setEvent(response.data);
-      } catch (error) {
-        console.error('Error fetching event details:', error);
-      }
-    };
+    if (isAuthenticated) {
+      fetchUserData();
+    }
+  }, [isAuthenticated]);
 
-    fetchEventDetails();
-  }, [eventID]);
+  const fetchUserData = async () => {
+    try {
+      const token = await getAccessTokenSilently({
+        authorizationParams: {
+          audience: authConfig.REACT_APP_AUTH0_AUDIENCE,
+          scope: ["openid", "profile", "email"].join(" "),
+        },
+      });
 
-  const handleFavoriteClick = async () => {
-    if (!isAuthenticated) {
-      loginWithRedirect();
+      const response = await getUserById(user.sub, token);
+      setUserData(response.data.user);
+    } catch (err) {
+      setError('Failed to fetch user data');
+      console.error('Error fetching user data:', err);
+    }
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+
+    if (!userData) {
+      setError('User data not loaded');
       return;
     }
 
+    const eventPayload = {
+      event: {
+        id: `event-${Date.now()}`,  // Generating a unique ID for the event
+        name: eventName,
+        dates: {
+          start: {
+            localDate: eventDate,
+          },
+        },
+        classifications: [{ segment: { name: 'General' } }],
+        no_of_tickets: parseInt(noOfTickets),
+        price: parseFloat(price),
+        userId: userData.id,  // Assuming userData.id contains the user's ID
+      },
+      venue: {
+        id: `venue-${Date.now()}`,  // Generating a unique ID for the venue
+        name: eventLocation,
+        city: { name: 'Sample City' },  // You might want to extract the city from the location or let the user provide it
+      },
+    };
+
     try {
-      await axios.post(`http://localhost:5001/users/addToFavourites`, {
-        eventId: eventID,
-        // Add user ID from Auth0 or user context
+      const token = await getAccessTokenSilently({
+        authorizationParams: {
+          audience: authConfig.REACT_APP_AUTH0_AUDIENCE,
+          scope: ["openid", "profile", "email"].join(" "),
+        },
       });
-      console.log('Event added to favorites');
-    } catch (error) {
-      console.error('Error adding event to favorites:', error);
+
+      const response = await createEvent(eventPayload, token);
+
+      if (response.status === 200) {
+        setSuccess(true);
+        navigate('/'); // Redirect to home or events page after successful creation
+      } else {
+        setError('Failed to create event');
+      }
+    } catch (err) {
+      setError('An error occurred while creating the event');
+      console.error('Error creating event:', err);
     }
   };
-
-  const handleBuyTicketsClick = () => {
-    if (!isAuthenticated) {
-      loginWithRedirect();
-    } else {
-      navigate(`/events/${eventID}/payment`);
-    }
-  };
-
-  if (!event) {
-    return <p>Loading...</p>;
-  }
 
   return (
-    <div className="event-details">
-      <h1>{event.name}</h1>
-      <p>Date: {new Date(event.localDate).toLocaleDateString()}</p>
-      <p>Time: {event.localTime}</p>
-      <h2>Venue Information</h2>
-      {event.venue ? (
+    <div>
+      <h2>Create Event</h2>
+      {success && <p>Event created successfully!</p>}
+      {error && <p>{error}</p>}
+      <form onSubmit={handleSubmit}>
         <div>
-          <p><strong>Name:</strong> {event.venue.name}</p>
-          <p><strong>Address:</strong> {event.venue.address}, {event.venue.city}, {event.venue.state} {event.venue.postalCode}</p>
-          <p><strong>Country:</strong> {event.venue.country}</p>
+          <label>Event Name:</label>
+          <input
+            type="text"
+            value={eventName}
+            onChange={(e) => setEventName(e.target.value)}
+            required
+          />
         </div>
-      ) : (
-        <p>No venue information available.</p>
-      )}
-      <button className="btn btn-primary" onClick={handleFavoriteClick}>Add to Favorites</button>
-      <button className="btn btn-success" onClick={handleBuyTicketsClick}>Buy Tickets</button>
-      <EventModal event={event} isOpen={modalIsOpen} onClose={() => setModalIsOpen(false)} />
+        <div>
+          <label>Event Date:</label>
+          <input
+            type="date"
+            value={eventDate}
+            onChange={(e) => setEventDate(e.target.value)}
+            required
+          />
+        </div>
+        <div>
+          <label>Location:</label>
+          <input
+            type="text"
+            value={eventLocation}
+            onChange={(e) => setEventLocation(e.target.value)}
+            required
+          />
+        </div>
+        <div>
+          <label>Description:</label>
+          <textarea
+            value={eventDescription}
+            onChange={(e) => setEventDescription(e.target.value)}
+            required
+          />
+        </div>
+        <div>
+          <label>No. of Tickets:</label>
+          <input
+            type="number"
+            value={noOfTickets}
+            onChange={(e) => setNoOfTickets(e.target.value)}
+            required
+          />
+        </div>
+        <div>
+          <label>Price:</label>
+          <input
+            type="number"
+            value={price}
+            onChange={(e) => setPrice(e.target.value)}
+            required
+          />
+        </div>
+        <button type="submit">Create Event</button>
+      </form>
     </div>
   );
 };
 
-export default EventDetailsPage;
+export default CreateEventPage;

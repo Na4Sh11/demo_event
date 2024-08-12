@@ -163,7 +163,24 @@ exports.addEventToFavorites = async (req, res) => {
     }
 
     // Parse the favorites as an array
-    const favorites = user.favorites ? JSON.parse(user.favorites) : [];
+    console.log(user.favorites);
+    // const favorites = user.favorites ? JSON.parse(user.favorites) : [];
+    if (Array.isArray(user.favorites)) {
+      // If `user.favorites` is already an array, use it directly
+      favorites = user.favorites;
+    } else if (user.favorites) {
+      // If `user.favorites` is a valid JSON string, parse it
+      try {
+        favorites = JSON.parse(user.favorites);
+      } catch (err) {
+        return res.status(500).json({ message: 'Failed to parse favorites', error: err.message });
+      }
+    } else {
+      // If `user.favorites` is null or undefined, start with an empty array
+      favorites = [];
+    }
+    
+
 
     // Check if the event is already in favorites
     if (favorites.includes(eventId)) {
@@ -192,6 +209,7 @@ exports.addEventToFavorites = async (req, res) => {
  * @param {Object} res - The response object for sending responses.
  */
 exports.buyTickets = async (req, res) => {
+  console.log(req.body);
   try {
     const { userId, eventId, noOfTickets } = req.body;
 

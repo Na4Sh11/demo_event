@@ -1,6 +1,8 @@
 // src/api/api.js
 import axios from 'axios';
 import TokenUtil from '../utils/TokenUtil'; // Ensure you have a utility for token management
+//import { use } from '../../../../backend/src/routes/eventRoutes';
+//import { use } from '../../../../backend/src/routes/eventRoutes';
 
 const API_URL = 'http://localhost:5001'; // Backend API base URL
 
@@ -79,19 +81,6 @@ export const updateUserOrganization = async (id, organization) => {
   }
 };
 
-// src/utils/api.js
-export const updateUserProfile = async (userId, profileData) => {
-  try {
-    const token = await getToken();
-    return axios.put(`${API_URL}/users/${userId}`, profileData, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-  } catch (error) {
-    console.error('Error updating user profile:', error);
-    throw error;
-  }
-};
-
 // Additional API Methods
 export const createEvent = async (eventData) => {
   try {
@@ -113,6 +102,87 @@ export const deleteEvent = async (id) => {
     });
   } catch (error) {
     console.error('Error deleting event:', error);
+    throw error;
+  }
+};
+
+// Purchase Tickets
+export const purchaseTickets = async (id, eventId, noOfTickets) => {
+  const token = await getToken(); // Retrieve token from TokenUtil
+  console.log("here at purchase" + id);
+  console.log("here event " + eventId);
+  return axios.post(
+    `${API_URL}/users/buyTickets`,
+    {
+      "userId" : id,
+      "eventId" : eventId,
+      "noOfTickets": noOfTickets
+    },
+    {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+    }
+  );
+};
+// Add to Favorites
+export const addToFavorites = async (eventId, userId) => {
+  try {
+    const token = await getToken();
+    return axios.post(`${API_URL}/users/addToFavourites`, {
+      eventId,
+      userId,
+    }, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+  } catch (error) {
+    console.error('Error adding to favorites:', error);
+    throw error;
+  }
+};
+
+export const updateEventStatus = async (userId, eventId, newStatus) => {
+  try {
+    const token = await getToken();
+    return axios.put(`${API_URL}/events/updateUserEventStatus`, {
+      userId,
+      eventId,
+      newStatus,
+    }, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+  } catch (error) {
+    console.error('Error updating event status:', error);
+    throw error;
+  }
+};
+
+// Function to remove an event from a user's favorites
+export const removeFromFavorites = async (userId, eventId) => {
+  try {
+    const token = await getToken();
+    return axios.delete(`${API_URL}/removeFromFavorites`, {
+      headers: { Authorization: `Bearer ${token}` },
+      data: { userId, eventId }
+    });
+  } catch (error) {
+    console.error('Error removing event from favorites:', error);
+    throw error;
+  }
+};
+
+
+export const getUserHistory = async (userId, headers) => {
+  try {
+    // The body data is passed as the second argument, headers as the third
+    return await axios.post(
+      `${API_URL}/users/getUserHistory`,
+      { userId },   // Body data
+      { headers }   // Headers
+    );
+  } catch (error) {
+    console.error('Error fetching user history:', error);
     throw error;
   }
 };

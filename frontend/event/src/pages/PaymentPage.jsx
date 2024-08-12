@@ -1,9 +1,13 @@
 import React, { useState } from 'react';
+import { useAuth0 } from '@auth0/auth0-react';
 import { FaCheckCircle, FaCcVisa, FaCcMastercard, FaCcAmex } from 'react-icons/fa'; 
 import { Button, Form } from 'react-bootstrap';
-import axios from 'axios';
+import { useParams } from 'react-router-dom'; // Import useParams
+import { purchaseTickets } from '../utils/api'; // Import your API method
 
-const PaymentPage = ({ userId, eventId }) => { // Assume userId and eventId are passed as props
+const PaymentPage = () => {
+  const { user, isAuthenticated } = useAuth0();
+  const { eventId } = useParams(); // Extract eventId from URL
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
@@ -21,6 +25,7 @@ const PaymentPage = ({ userId, eventId }) => { // Assume userId and eventId are 
 
   
   const handlePaymentSubmit = async () => {
+    
     if (
       emailRegex.test(email) &&
       cardNumberRegex.test(cardNumber) &&
@@ -28,24 +33,25 @@ const PaymentPage = ({ userId, eventId }) => { // Assume userId and eventId are 
       cvvRegex.test(cvv)
     ) {
       setIsValid(true);
+      const url = window.location.href;
+      const regex = /\/events\/([^/]+)\/payment/;
+      const match = url.match(regex);
+      const event_Id =  match ? match[1] : null;
+      console.log("eventID in paymentpage" + event_Id);
       
-      console.log(userId);
-      console.log(eventId);
-      console.log(noOfTickets);
       try {
-        // API call to buy tickets
-        const response = await axios.post('http://localhost:5001/users/buyTickets', {
-          userId: 1,
-          eventId: '1ApZkeKGkdrhkM6',
-          noOfTickets
-        });
-      
+        // API call to purchase tickets
+        if (user) { // Ensure user is authenticated
+          const response = await purchaseTickets(user.sub, event_Id, noOfTickets);
 
-        if (response.status === 200) {
-          setPurchaseSuccess(true);
-          console.log('Tickets purchased successfully');
+          if (response.status === 200) {
+            setPurchaseSuccess(true);
+            console.log('Tickets purchased successfully');
+          } else {
+            console.error('Failed to purchase tickets:', response.data.error);
+          }
         } else {
-          console.error('Failed to purchase tickets:', response.data.error);
+          console.error('User is not authenticated');
         }
       } catch (err) {
         console.error('Error during payment:', err);
@@ -53,6 +59,7 @@ const PaymentPage = ({ userId, eventId }) => { // Assume userId and eventId are 
     } else {
       setIsValid(false);
     }
+    
   };
 
   return (

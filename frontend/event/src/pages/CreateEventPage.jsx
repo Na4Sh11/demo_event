@@ -1,9 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth0 } from '@auth0/auth0-react';
 import { useNavigate } from 'react-router-dom';
-import { getUserById } from '../utils/api'; // Import the global API function
 import authConfig from '../auth_config.json';
-import axios from 'axios';
 
 const CreateEventPage = () => {
   const { user, isAuthenticated, getAccessTokenSilently } = useAuth0();
@@ -13,10 +11,20 @@ const CreateEventPage = () => {
   const [eventDescription, setEventDescription] = useState('');
   const [noOfTickets, setNoOfTickets] = useState('');
   const [price, setPrice] = useState('');
+  const [eventType, setEventType] = useState('');
+  const [eventUrl, setEventUrl] = useState('');
+  const [eventLocale, setEventLocale] = useState('');
+  const [eventImages, setEventImages] = useState('');
+  const [salesStartDate, setSalesStartDate] = useState('');
+  const [salesEndDate, setSalesEndDate] = useState('');
+  const [localTime, setLocalTime] = useState('');
+  const [timezone, setTimezone] = useState('');
+  const [statusCode, setStatusCode] = useState('');
+  const [category, setCategory] = useState('');
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(false);
-  const navigate = useNavigate();
   const [userData, setUserData] = useState(null);
+  const navigate = useNavigate();
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -29,12 +37,23 @@ const CreateEventPage = () => {
       const token = await getAccessTokenSilently({
         authorizationParams: {
           audience: authConfig.REACT_APP_AUTH0_AUDIENCE,
-          scope: ["openid", "profile", "email"].join(" "),
+          scope: 'openid profile email',
         },
       });
 
-      const response = await getUserById(user.sub, token);
-      setUserData(response.data.user);
+      const response = await fetch(`/users/${user.sub}`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch user data');
+      }
+
+      const data = await response.json();
+      setUserData(data.user);
     } catch (err) {
       setError('Failed to fetch user data');
       console.error('Error fetching user data:', err);
@@ -50,30 +69,42 @@ const CreateEventPage = () => {
     }
 
     const eventPayload = {
-      event: {
-        id: `event-${Date.now()}`,  // Generating a unique ID for the event
-        name: eventName,
-        dates: {
-          start: {
-            localDate: eventDate,
-          },
+      id: `event-${Date.now()}`, // Generate a unique ID
+      name: eventName || null,
+      type: eventType || null,
+      url: eventUrl || null,
+      locale: eventLocale || null,
+      images: eventImages || null,
+      sales: {
+        public: {
+          startDateTime: salesStartDate || null,
+          endDateTime: salesEndDate || null,
         },
-        classifications: [{ segment: { name: 'General' } }],
-        no_of_tickets: parseInt(noOfTickets),
-        price: parseFloat(price),
-        userId: userData.id,  // Assuming userData.id contains the user's ID
       },
+      localDate: eventDate ? new Date(eventDate).toISOString() : null,
+      localTime: localTime || null,
+      timezone: timezone || null,
+      statusCode: statusCode || null,
+      category: category || '',
+      posted_by: userData ? { auth0_id: userData.auth0_id } : null,
+      no_of_tickets: parseInt(noOfTickets, 10) || null,
+      price: parseFloat(price) || null,
       venue: {
-        id: `venue-${Date.now()}`,  // Generating a unique ID for the venue
-        name: eventLocation,
-        city: { name: 'Sample City' },  // You might want to extract the city from the location or let the user provide it
+        id: `venue-${Date.now()}`, // Generate a unique ID for the venue
       },
+      classifications: null, // Add any other fields or data as needed
     };
 
     try {
-      const response = await axios.post('http://localhost:5001/events/', eventPayload);
+      const response = await fetch('http://localhost:5001/events', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(eventPayload),
+      });
 
-      if (response.status === 200) {
+      if (response.ok) {
         setSuccess(true);
         navigate('/'); // Redirect to home or events page after successful creation
       } else {
@@ -101,12 +132,92 @@ const CreateEventPage = () => {
           />
         </div>
         <div>
+          <label>Event Type:</label>
+          <input
+            type="text"
+            value={eventType}
+            onChange={(e) => setEventType(e.target.value)}
+          />
+        </div>
+        <div>
+          <label>Event URL:</label>
+          <input
+            type="text"
+            value={eventUrl}
+            onChange={(e) => setEventUrl(e.target.value)}
+          />
+        </div>
+        <div>
+          <label>Event Locale:</label>
+          <input
+            type="text"
+            value={eventLocale}
+            onChange={(e) => setEventLocale(e.target.value)}
+          />
+        </div>
+        <div>
+          <label>Event Images (comma-separated URLs):</label>
+          <input
+            type="text"
+            value={eventImages}
+            onChange={(e) => setEventImages(e.target.value)}
+          />
+        </div>
+        <div>
+          <label>Sales Start Date:</label>
+          <input
+            type="datetime-local"
+            value={salesStartDate}
+            onChange={(e) => setSalesStartDate(e.target.value)}
+          />
+        </div>
+        <div>
+          <label>Sales End Date:</label>
+          <input
+            type="datetime-local"
+            value={salesEndDate}
+            onChange={(e) => setSalesEndDate(e.target.value)}
+          />
+        </div>
+        <div>
           <label>Event Date:</label>
           <input
             type="date"
             value={eventDate}
             onChange={(e) => setEventDate(e.target.value)}
             required
+          />
+        </div>
+        <div>
+          <label>Local Time:</label>
+          <input
+            type="text"
+            value={localTime}
+            onChange={(e) => setLocalTime(e.target.value)}
+          />
+        </div>
+        <div>
+          <label>Timezone:</label>
+          <input
+            type="text"
+            value={timezone}
+            onChange={(e) => setTimezone(e.target.value)}
+          />
+        </div>
+        <div>
+          <label>Status Code:</label>
+          <input
+            type="text"
+            value={statusCode}
+            onChange={(e) => setStatusCode(e.target.value)}
+          />
+        </div>
+        <div>
+          <label>Category:</label>
+          <input
+            type="text"
+            value={category}
+            onChange={(e) => setCategory(e.target.value)}
           />
         </div>
         <div>
