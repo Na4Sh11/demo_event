@@ -55,7 +55,7 @@ exports.getAllEvents = async (req, res) => {
     });
 
     // Extract IDs of the filtered venues
-    const venueIds = filteredVenues.map(venue => venue.id);
+    const venueIds = (filteredVenues || []).map(venue => venue.id);
 
     // Build query condition for events
     const eventWhereCondition = {
@@ -184,7 +184,7 @@ exports.createEvent = async (req, res) => {
         statusCode: event.dates?.status.code || null,
         category: event.classifications[0]?.segment?.name || '',
         posted_by: {
-          connect: { id: event.userId } // Connect user based on userId
+          connect: { auth0_id: event.userId } // Connect user based on userId
         },
         no_of_tickets: event.no_of_tickets,
         price: event.price,
@@ -209,7 +209,7 @@ exports.createEvent = async (req, res) => {
         updatedEventsPosted.push(createdEvent.id);
 
         await prisma.user.update({
-          where: { id: event.userId },
+          where: { auth0_id: event.userId },
           data: {
             eventsPostedId: JSON.stringify(updatedEventsPosted)
           }
@@ -314,15 +314,6 @@ exports.ping = (req, res) => {
     res.status(200).json({ message: 'Server is up and running!' });
   } catch (err) {
     res.status(500).json({ error: 'Failed to ping server.' });
-  }
-};
-
-exports.getAuthentication = (req, res) => {
-  console.log("here in backend successful");
-  try {
-    res.status(200).json({ message: 'Authentication is good!' });
-  } catch (err) {
-    res.status(500).json({ error: 'Failed to authenticate.' });
   }
 };
 

@@ -85,7 +85,7 @@ exports.viewUser = async (req, res) => {
   
   try {
     const user = await prisma.user.findUnique({
-      where: { id: parseInt(id) },
+      where: { auth0_id: id },
     });
     
     if (!user) {
@@ -112,7 +112,7 @@ exports.updateUser = async (req, res) => {
     if (organization) updateData.organization = organization;
     
     const updatedUser = await prisma.user.update({
-      where: { id: parseInt(id) },
+      where: { auth0_id: id },
       data: updateData,
     });
     
@@ -128,7 +128,7 @@ exports.deleteUser = async (req, res) => {
   
   try {
     await prisma.user.delete({
-      where: { id: parseInt(id) },
+      where: { auth0_id: id },
     });
     
     res.status(200).json({ message: 'User deleted successfully' });
@@ -148,21 +148,34 @@ exports.addEventToFavorites = async (req, res) => {
     const { userId, eventId } = req.body;
 
     // Validate inputs
-    if (typeof userId !== 'number' || typeof eventId !== 'string') {
+    if (typeof userId !== 'string' || typeof eventId !== 'string') {
       return res.status(400).json({ error: 'Invalid input' });
     }
 
     // Fetch the user to get current favorites
     const user = await prisma.user.findUnique({
-      where: { id: userId }
+      where: { auth0_id: userId }
     });
 
     if (!user) {
       return res.status(404).json({ error: 'User not found' });
     }
 
-    // Parse the favorites as an array
-    const favorites = user.favorites ? JSON.parse(user.favorites) : [];
+    if (Array.isArray(user.favorites)) {
+      // If `user.favorites` is already an array, use it directly
+      favorites = user.favorites;
+    } else if (user.favorites) {
+      // If `user.favorites` is a valid JSON string, parse it
+      try {
+        favorites = JSON.parse(user.favorites);
+      } catch (err) {
+        return res.status(500).json({ message: 'Failed to parse favorites', error: err.message });
+      }
+    } else {
+      // If `user.favorites` is null or undefined, start with an empty array
+      favorites = [];
+    }
+
 
     // Check if the event is already in favorites
     if (favorites.includes(eventId)) {
@@ -174,7 +187,7 @@ exports.addEventToFavorites = async (req, res) => {
 
     // Update the user's favorites
     await prisma.user.update({
-      where: { id: userId },
+      where: { auth0_id: userId },
       data: { favorites: favorites },
     });
 
@@ -195,7 +208,7 @@ exports.buyTickets = async (req, res) => {
     const { userId, eventId, noOfTickets } = req.body;
 
     // Validate inputs
-    if (typeof userId !== 'number' || typeof eventId !== 'string' || typeof noOfTickets !== 'number') {
+    if (typeof userId !== 'string' || typeof eventId !== 'string' || typeof noOfTickets !== 'number') {
       return res.status(400).json({ error: 'Invalid input' });
     }
 
@@ -267,7 +280,7 @@ exports.buyTickets = async (req, res) => {
       };
 
       // Fetch user's email
-      const user = await prisma.user.findUnique({ where: { id: userId }, select: { email: true } });
+      const user = await prisma.user.findUnique({ where: { auth0_id: userId }, select: { email: true } });
 
       // if (user) {
       //   await sendPurchaseConfirmationEmail(user.email, purchaseDetails);
@@ -294,7 +307,7 @@ exports.updateUserEventStatus = async (req, res) => {
     const {id, userId, eventId, newStatus } = req.body;
 
     // Validate inputs
-    if (typeof userId !== 'number' || typeof eventId !== 'string' || !['going', 'not-going'].includes(newStatus)) {
+    if (typeof userId !== 'string' || typeof eventId !== 'string' || !['going', 'not-going'].includes(newStatus)) {
       return res.status(400).json({ error: 'Invalid input' });
     }
 
@@ -367,7 +380,7 @@ exports.getEventsPosted = async (req, res) => {
   try {
     // Fetch the user's eventsPosted JSON field
     const user = await prisma.user.findUnique({
-      where: { id: userId },
+      where: { auth0_id: userId },
       select: { eventsPostedId: true } // Fetch only the eventsPosted field
     });
 
