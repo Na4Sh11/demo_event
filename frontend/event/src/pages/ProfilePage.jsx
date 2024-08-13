@@ -3,6 +3,7 @@ import { useAuth0 } from '@auth0/auth0-react';
 import moment from 'moment';
 import { useNavigate } from 'react-router-dom';
 import { getUserById, getEventById, updateEventStatus, getUserHistory } from '../utils/api'; // Adjust path as necessary
+import TokenUtil from '../utils/TokenUtil';
 
 const ProfilePage = () => {
   const { user, isAuthenticated, getAccessTokenSilently } = useAuth0();
@@ -13,8 +14,6 @@ const ProfilePage = () => {
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
-  
-
   useEffect(() => {
     if (isAuthenticated && user) {
       fetchUserData(user.sub);
@@ -23,33 +22,21 @@ const ProfilePage = () => {
 
   const fetchUserData = async (auth0Id) => {
     try {
-      const token = await getAccessTokenSilently();
+      const token = await TokenUtil.getToken(); 
+      console.log("token in profile " + token);
       const headers = {
         'Authorization': `Bearer ${token}`,
         'Content-Type': 'application/json'
       };
 
-      // Fetch user data
       const userResponse = await getUserById(auth0Id, headers);
       const userData = userResponse.data.user;
       setUserData(userData);
-
-      console.log("Fetched User Data:", userData); // Debugging line
-
-      // Fetch user history for booked events
+      console.log(userData);
       const historyResponse = await getUserHistory(auth0Id, headers);
-      const historyData = historyResponse.data; // Adjust if needed based on your API response
-
-      console.log("History Response:", historyResponse); // Debugging line
-      console.log("History Data:", historyData); // Debugging line
-
-      // Extract booked events from history
-      const fetchedBookedEvents = historyData.bookedEvents || [];
+      const fetchedBookedEvents = historyResponse.data || [];
       setBookedEvents(fetchedBookedEvents);
 
-      console.log("Fetched Booked Events:", fetchedBookedEvents); // Debugging line
-
-      // Create a set of unique event IDs from favorites and booked events
       const eventIds = [...new Set([
         ...(userData.favorites || []),
         ...(fetchedBookedEvents.map(event => event.event_id) || [])
@@ -64,7 +51,6 @@ const ProfilePage = () => {
         });
         setEventDetails(eventDetailsMap);
       }
-
     } catch (err) {
       setError('Failed to fetch user data');
       console.error('Error fetching user data:', err);
@@ -72,7 +58,6 @@ const ProfilePage = () => {
       setLoading(false);
     }
   };
-
 
   const handleStatusChange = async (eventId, newStatus, eventDate) => {
     const currentDate = moment().format('YYYY-MM-DD');
@@ -89,9 +74,15 @@ const ProfilePage = () => {
         'Content-Type': 'application/json'
       };
 
-      await updateEventStatus(userData.id, eventId, newStatus, headers);
+      await updateEventStatus(user.sub, eventId, newStatus, headers);
       alert('Status updated successfully');
-      fetchUserData(userData.id); // Refresh user data after status update
+
+      // Update the specific event's status in the state
+      setBookedEvents(prevEvents =>
+        prevEvents.map(event =>
+          event.event_id === eventId ? { ...event, status: newStatus } : event
+        )
+      );
     } catch (err) {
       console.error('Error updating status:', err);
       alert('Failed to update status.');
@@ -127,8 +118,8 @@ const ProfilePage = () => {
 
           <h3>Booked Events</h3>
           <ul>
-            {bookedEvents.map((event) => (
-              <li key={event.event_id}>
+            {bookedEvents.map((event, index) => (
+              <li key={`${event.event_id}_${index}`}>
                 {eventDetails[event.event_id]?.name || event.event_id} - {event.status}
                 <button onClick={() => handleStatusChange(event.event_id, 'going', event.event_date)}>Mark as Going</button>
                 <button onClick={() => handleStatusChange(event.event_id, 'not-going', event.event_date)}>Mark as Not Going</button>
@@ -137,7 +128,6 @@ const ProfilePage = () => {
                 )}
               </li>
             ))}
-
           </ul>
         </div>
       ) : (

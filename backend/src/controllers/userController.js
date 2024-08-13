@@ -110,11 +110,14 @@ exports.updateUser = async (req, res) => {
     if (name) updateData.name = name;
     if (password) updateData.password = await bcrypt.hash(password, 10);
     if (organization) updateData.organization = organization;
-    
+    console.log("id in update backend "+id);
     const updatedUser = await prisma.user.update({
       where: { auth0_id: id },
       data: updateData,
     });
+
+    console.log("id successful in update backend "+id);
+
     
     res.status(200).json({ message: 'User updated successfully', user: updatedUser });
   } catch (err) {
@@ -312,7 +315,7 @@ exports.buyTickets = async (req, res) => {
  */
 exports.updateUserEventStatus = async (req, res) => {
   try {
-    const {id, userId, eventId, newStatus } = req.body;
+    const {userId, eventId, newStatus } = req.body;
 
     // Validate inputs
     if (typeof userId !== 'string' || typeof eventId !== 'string' || !['going', 'not-going'].includes(newStatus)) {
@@ -337,7 +340,6 @@ exports.updateUserEventStatus = async (req, res) => {
     // Update the UserEvent status
     const userEvent = await prisma.userEvent.updateMany({
       where: {
-        id: id,
         user_id: userId,
         event_id: eventId
       },
@@ -370,11 +372,11 @@ exports.getUserHistory = async (req, res) => {
       }
     });
 
-    if (userEvents.length > 0) {
+    
       res.json(userEvents);
-    } else {
-      res.status(404).json({ error: 'No history found for this user.' });
-    }
+   
+      //res.status(404).json({ error: 'No history found for this user.' });
+    
   } catch (err) {
     console.log("Error in fetching user history", err);
     res.status(500).json({ error: 'Failed to fetch user history.' });

@@ -5,7 +5,7 @@
 
 // function App() {
 //   const { loginWithRedirect, logout, user, isAuthenticated, getAccessTokenSilently } = useAuth0();
-  
+
 //   const requestedScopes = ["openid","profile", "email"];
 
 //   const fetchUserData = async () => {
@@ -17,18 +17,18 @@
 //             scope: requestedScopes.join(" "),
 //           },
 //         });
-        
+
 //         console.log("here the token = {}", token);
 //         const response = await fetch(`http://localhost:5001/users/authentication`, {
 //           headers: {
 //             Authorization: `Bearer ${token}`
 //           },
 //         });
-  
+
 //         if (!response.ok) {
 //           throw new Error('Network response was not ok');
 //         }
-  
+
 //         console.log("Everything on frontend is successful");
 //       } catch (error) {
 //         console.error('Error fetching user data:', error);
@@ -110,6 +110,7 @@ function App() {
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const navigate = useNavigate();
   const requestedScopes = ["openid", "profile", "email"];
 
@@ -153,24 +154,25 @@ function App() {
 
       const response = await getUserById(user.sub);
 
-      if (!response.data) {
-        if (user.sub.startsWith('google')) {
-          setEmail(user.email);
-          setFirstName(user.given_name || '');
-          setLastName(user.family_name || '');
-          setShowModal(true);
+      if (!response.ok) {
+        
+      }
+
+      else {
+        // Parse the JSON response
+        const data = await response.json();
+
+        // Check if user data exists
+        if (data && data.user) {
+          console.log('User is found:', data.user);
         } else {
-          await storeUserInDatabase();
-        }
-      } else {
-        if (!response.data.organization && user.sub.startsWith('google')) {
-          setEmail(user.email);
-          setFirstName(response.data.firstName || user.given_name || '');
-          setLastName(response.data.lastName || user.family_name || '');
-          setShowModal(true);
+          console.log('User not found');
         }
       }
     } catch (error) {
+      //throw new Error(`HTTP error! Status: ${response.status}`);
+      console.log("usernot found");
+      setShowModal(true);
       console.error('Error checking user in database:', error);
     }
   };
@@ -179,7 +181,7 @@ function App() {
     event.preventDefault(); // Prevent the default form submission
 
     try {
-      await updateUserOrganization(user.sub, organization, firstName, lastName);
+      await updateUserOrganization(user.sub, organization, firstName, lastName, user.email, password);
       setShowModal(false); // Close the modal after successful submission
     } catch (error) {
       console.error('Error submitting modal form:', error);
@@ -262,7 +264,7 @@ function App() {
                       type="text"
                       className="form-control"
                       id="email"
-                      value={email}
+                      value={user.email}
                       readOnly
                     />
                   </div>
@@ -285,6 +287,17 @@ function App() {
                       id="lastName"
                       value={lastName}
                       onChange={(e) => setLastName(e.target.value)}
+                      required
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label htmlFor="password">Password:</label>
+                    <input
+                      type="password"
+                      className="form-control"
+                      id="password"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
                       required
                     />
                   </div>

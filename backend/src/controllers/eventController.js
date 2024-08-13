@@ -200,7 +200,7 @@ exports.createEvent = async (req, res) => {
     if (event.userId) {
       // Fetch the current user data
       const user = await prisma.user.findUnique({
-        where: { id: event.userId },
+        where: { auth0_id: event.userId },
       });
 
       if (user) {

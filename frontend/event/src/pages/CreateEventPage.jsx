@@ -32,6 +32,7 @@ const CreateEventPage = () => {
     }
   }, [isAuthenticated]);
 
+
   const fetchUserData = async () => {
     try {
       const token = await getAccessTokenSilently({
@@ -41,7 +42,7 @@ const CreateEventPage = () => {
         },
       });
 
-      const response = await fetch(`/users/${user.sub}`, {
+      const response = await fetch(`http://localhost:5001/users/${user.sub}`, {
         headers: {
           Authorization: `Bearer ${token}`,
           'Content-Type': 'application/json',
@@ -68,31 +69,55 @@ const CreateEventPage = () => {
       return;
     }
 
+    console.log(statusCode);
+    const formatDateTime = (dateTimeString) => {
+        if (!dateTimeString) return null;
+        return `${dateTimeString}:00.000Z`; // Append seconds and milliseconds
+      };
     const eventPayload = {
-      id: `event-${Date.now()}`, // Generate a unique ID
-      name: eventName || null,
-      type: eventType || null,
-      url: eventUrl || null,
-      locale: eventLocale || null,
-      images: eventImages || null,
-      sales: {
-        public: {
-          startDateTime: salesStartDate || null,
-          endDateTime: salesEndDate || null,
-        },
-      },
-      localDate: eventDate ? new Date(eventDate).toISOString() : null,
-      localTime: localTime || null,
-      timezone: timezone || null,
-      statusCode: statusCode || null,
-      category: category || '',
-      posted_by: userData ? { auth0_id: userData.auth0_id } : null,
-      no_of_tickets: parseInt(noOfTickets, 10) || null,
-      price: parseFloat(price) || null,
+     
       venue: {
-        id: `venue-${Date.now()}`, // Generate a unique ID for the venue
+        id: `venue123`, // Generate a unique ID for the venue
       },
-      classifications: null, // Add any other fields or data as needed
+      event : {
+        userId : user.sub,
+        id: `event-${Date.now()}`, // Generate a unique ID
+        name: eventName || null,
+        type: eventType || null,
+        url: eventUrl || null,
+        locale: eventLocale || null,
+        images: eventImages || null,
+        sales: {
+          public: {
+            startDateTime: new Date(formatDateTime(salesStartDate)), // Convert input to ISO-8601
+            endDateTime: new Date(formatDateTime(salesEndDate)),
+          },
+        },
+        dates: {
+            timezone: timezone || null,
+            status:{
+                code: statusCode
+            },
+            start:{
+                localTime: localTime || null,
+            }
+        },
+        classification:{
+            segment:{
+                name:{
+                    category: category || '',
+                }
+            }
+        },
+       
+        localDate: eventDate ? new Date(eventDate).toISOString() : null,
+        
+        //posted_by: userData ? { auth0_id: userData.auth0_id } : null,
+        no_of_tickets: parseInt(noOfTickets, 10) || null,
+        price: parseFloat(price) || null,
+        classifications: [' '], // Add any other fields or data as needed
+      }
+      
     };
 
     try {
@@ -104,6 +129,7 @@ const CreateEventPage = () => {
         body: JSON.stringify(eventPayload),
       });
 
+      console.log(response + "in create event");
       if (response.ok) {
         setSuccess(true);
         navigate('/'); // Redirect to home or events page after successful creation

@@ -56,8 +56,10 @@ export const getUsers = async () => {
 };
 
 export const getUserById = async (id) => {
+  
   try {
     const token = await getToken();
+    console.log("token in getuserbyid in api " + token);
     return axios.get(`${API_URL}/users/${id}`, {
       headers: { Authorization: `Bearer ${token}` },
     });
@@ -67,11 +69,15 @@ export const getUserById = async (id) => {
   }
 };
 
-export const updateUserOrganization = async (id, organization) => {
+export const updateUserOrganization = async (id, organization, firstName, lastName, email, password) => {
   try {
     const token = await getToken();
-    return axios.put(`${API_URL}/users/${id}`, {
-      organization,
+    return axios.post(`${API_URL}/users/signup`, {
+        auth0_id : id,
+        email : email,
+        name : firstName + lastName,
+        password: password,
+        organization : organization,
     }, {
       headers: { Authorization: `Bearer ${token}` },
     });
@@ -145,7 +151,7 @@ export const addToFavorites = async (eventId, userId) => {
 export const updateEventStatus = async (userId, eventId, newStatus) => {
   try {
     const token = await getToken();
-    return axios.put(`${API_URL}/events/updateUserEventStatus`, {
+    return axios.post(`${API_URL}/users/updateUserEventStatus`, {
       userId,
       eventId,
       newStatus,
@@ -175,11 +181,15 @@ export const removeFromFavorites = async (userId, eventId) => {
 
 export const getUserHistory = async (userId, headers) => {
   try {
+    
+    const token = await getToken();
+    console.log("token in history " + token);
     // The body data is passed as the second argument, headers as the third
     return await axios.post(
-      `${API_URL}/users/getUserHistory`,
-      { userId },   // Body data
-      { headers }   // Headers
+      `${API_URL}/users/getUserHistory`,{
+      headers: { Authorization: `Bearer ${token}` },
+      data: { userId }
+      } 
     );
   } catch (error) {
     console.error('Error fetching user history:', error);
