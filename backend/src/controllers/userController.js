@@ -161,10 +161,6 @@ exports.addEventToFavorites = async (req, res) => {
     if (!user) {
       return res.status(404).json({ error: 'User not found' });
     }
-
-    // Parse the favorites as an array
-    console.log(user.favorites);
-    // const favorites = user.favorites ? JSON.parse(user.favorites) : [];
     if (Array.isArray(user.favorites)) {
       // If `user.favorites` is already an array, use it directly
       favorites = user.favorites;
@@ -179,7 +175,6 @@ exports.addEventToFavorites = async (req, res) => {
       // If `user.favorites` is null or undefined, start with an empty array
       favorites = [];
     }
-    
 
 
     // Check if the event is already in favorites

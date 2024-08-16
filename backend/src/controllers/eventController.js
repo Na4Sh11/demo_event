@@ -55,7 +55,7 @@ exports.getAllEvents = async (req, res) => {
     });
 
     // Extract IDs of the filtered venues
-    const venueIds = filteredVenues.map(venue => venue.id);
+    const venueIds = (filteredVenues || []).map(venue => venue.id);
 
     // Build query condition for events
     const eventWhereCondition = {
