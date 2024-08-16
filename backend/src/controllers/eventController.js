@@ -317,3 +317,11 @@ exports.ping = (req, res) => {
   }
 };
 
+exports.getAuthentication = (req, res) => {
+  console.log("here in backend successful");
+  try {
+    res.status(200).json({ message: 'Authentication is good!' });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to authenticate.' });
+  }
+};

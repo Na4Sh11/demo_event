@@ -143,6 +143,7 @@ exports.deleteUser = async (req, res) => {
  * @param {string|number} eventId - The ID of the event to add to favorites.
  * @returns {Promise<void>}
  */
+
 exports.addEventToFavorites = async (req, res) => {
   try {
     const { userId, eventId } = req.body;
@@ -160,7 +161,6 @@ exports.addEventToFavorites = async (req, res) => {
     if (!user) {
       return res.status(404).json({ error: 'User not found' });
     }
-
     if (Array.isArray(user.favorites)) {
       // If `user.favorites` is already an array, use it directly
       favorites = user.favorites;
@@ -204,6 +204,7 @@ exports.addEventToFavorites = async (req, res) => {
  * @param {Object} res - The response object for sending responses.
  */
 exports.buyTickets = async (req, res) => {
+  console.log(req.body);
   try {
     const { userId, eventId, noOfTickets } = req.body;
 
@@ -296,6 +297,8 @@ exports.buyTickets = async (req, res) => {
     await prisma.$disconnect();
   }
 };
+
+
 
 /**
  * Update the status of a UserEvent entry.
