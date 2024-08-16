@@ -1,6 +1,7 @@
 const { PrismaClient } = require('@prisma/client');
 const bcrypt = require('bcrypt');
 const prisma = new PrismaClient();
+const { sendPurchaseConfirmationEmail } = require('../util/emailUtils');
 
 // Ping endpoint for server health check
 exports.ping = (req, res) => {
@@ -84,7 +85,7 @@ exports.viewUser = async (req, res) => {
   
   try {
     const user = await prisma.user.findUnique({
-      where: { id: parseInt(id) },
+      where: { auth0_id: id },
     });
     
     if (!user) {
@@ -111,7 +112,7 @@ exports.updateUser = async (req, res) => {
     if (organization) updateData.organization = organization;
     
     const updatedUser = await prisma.user.update({
-      where: { id: parseInt(id) },
+      where: { auth0_id: id },
       data: updateData,
     });
     
@@ -127,7 +128,7 @@ exports.deleteUser = async (req, res) => {
   
   try {
     await prisma.user.delete({
-      where: { id: parseInt(id) },
+      where: { auth0_id: id },
     });
     
     res.status(200).json({ message: 'User deleted successfully' });
@@ -142,18 +143,19 @@ exports.deleteUser = async (req, res) => {
  * @param {string|number} eventId - The ID of the event to add to favorites.
  * @returns {Promise<void>}
  */
+
 exports.addEventToFavorites = async (req, res) => {
   try {
     const { userId, eventId } = req.body;
 
     // Validate inputs
-    if (typeof userId !== 'number' || typeof eventId !== 'string') {
+    if (typeof userId !== 'string' || typeof eventId !== 'string') {
       return res.status(400).json({ error: 'Invalid input' });
     }
 
     // Fetch the user to get current favorites
     const user = await prisma.user.findUnique({
-      where: { id: userId }
+      where: { auth0_id: userId }
     });
 
     if (!user) {
@@ -161,7 +163,24 @@ exports.addEventToFavorites = async (req, res) => {
     }
 
     // Parse the favorites as an array
-    const favorites = user.favorites ? JSON.parse(user.favorites) : [];
+    console.log(user.favorites);
+    // const favorites = user.favorites ? JSON.parse(user.favorites) : [];
+    if (Array.isArray(user.favorites)) {
+      // If `user.favorites` is already an array, use it directly
+      favorites = user.favorites;
+    } else if (user.favorites) {
+      // If `user.favorites` is a valid JSON string, parse it
+      try {
+        favorites = JSON.parse(user.favorites);
+      } catch (err) {
+        return res.status(500).json({ message: 'Failed to parse favorites', error: err.message });
+      }
+    } else {
+      // If `user.favorites` is null or undefined, start with an empty array
+      favorites = [];
+    }
+    
+
 
     // Check if the event is already in favorites
     if (favorites.includes(eventId)) {
@@ -173,7 +192,7 @@ exports.addEventToFavorites = async (req, res) => {
 
     // Update the user's favorites
     await prisma.user.update({
-      where: { id: userId },
+      where: { auth0_id: userId },
       data: { favorites: favorites },
     });
 
@@ -190,11 +209,12 @@ exports.addEventToFavorites = async (req, res) => {
  * @param {Object} res - The response object for sending responses.
  */
 exports.buyTickets = async (req, res) => {
+  console.log(req.body);
   try {
     const { userId, eventId, noOfTickets } = req.body;
 
     // Validate inputs
-    if (typeof userId !== 'number' || typeof eventId !== 'string' || typeof noOfTickets !== 'number') {
+    if (typeof userId !== 'string' || typeof eventId !== 'string' || typeof noOfTickets !== 'number') {
       return res.status(400).json({ error: 'Invalid input' });
     }
 
@@ -249,6 +269,29 @@ exports.buyTickets = async (req, res) => {
         },
       });
 
+      const venue = await prisma.venue.findUnique({
+        where: { id: event.venueId }
+      });
+  
+      const location = venue ? `${venue.city}, ${venue.state}` : 'No venue Found';
+
+      // Send confirmation email
+      const purchaseDetails = {
+        eventName: event.name,
+        location: location,
+        localDate: event.localDate,
+        localTime: event.localTime,
+        numberOfTickets: noOfTickets,
+        totalPrice: event.price * noOfTickets,
+      };
+
+      // Fetch user's email
+      const user = await prisma.user.findUnique({ where: { auth0_id: userId }, select: { email: true } });
+
+      // if (user) {
+      //   await sendPurchaseConfirmationEmail(user.email, purchaseDetails);
+      // }
+
     });
 
     return res.status(200).json({ message: 'Tickets purchased successfully' });
@@ -260,6 +303,8 @@ exports.buyTickets = async (req, res) => {
   }
 };
 
+
+
 /**
  * Update the status of a UserEvent entry.
  * @param {Object} req - The request object containing user ID, event ID, and new status.
@@ -270,7 +315,7 @@ exports.updateUserEventStatus = async (req, res) => {
     const {id, userId, eventId, newStatus } = req.body;
 
     // Validate inputs
-    if (typeof userId !== 'number' || typeof eventId !== 'string' || !['going', 'not-going'].includes(newStatus)) {
+    if (typeof userId !== 'string' || typeof eventId !== 'string' || !['going', 'not-going'].includes(newStatus)) {
       return res.status(400).json({ error: 'Invalid input' });
     }
 
@@ -313,3 +358,67 @@ exports.updateUserEventStatus = async (req, res) => {
     await prisma.$disconnect();
   }
 };
+
+exports.getUserHistory = async (req, res) => {
+  const {userId} = req.body;
+  try {
+    // Fetch all UserEvent records associated with the user
+    const userEvents = await prisma.userEvent.findMany({
+      where: { user_id: userId },
+      include: {
+        event: true // Include event details in the result
+      }
+    });
+
+    if (userEvents.length > 0) {
+      res.json(userEvents);
+    } else {
+      res.status(404).json({ error: 'No history found for this user.' });
+    }
+  } catch (err) {
+    console.log("Error in fetching user history", err);
+    res.status(500).json({ error: 'Failed to fetch user history.' });
+  }
+};
+
+// Get events posted by a user
+exports.getEventsPosted = async (req, res) => {
+  const {userId} = req.body;
+
+  try {
+    // Fetch the user's eventsPosted JSON field
+    const user = await prisma.user.findUnique({
+      where: { auth0_id: userId },
+      select: { eventsPostedId: true } // Fetch only the eventsPosted field
+    });
+
+    if (!user) {
+      return res.status(404).json({ error: 'User not found.' });
+    }
+
+    // Parse eventsPosted JSON field
+    const eventsPostedIds = user.eventsPostedId ? JSON.parse(user.eventsPostedId) : [];
+
+    // If no events are posted, return an empty array
+    if (eventsPostedIds.length === 0) {
+      return res.json([]);
+    }
+
+    // Fetch details of the events
+    const events = await prisma.event.findMany({
+      where: {
+        id: {
+          in: eventsPostedIds
+        }
+      }
+    });
+
+    // Return the events details as a response
+    res.json(events);
+
+  } catch (error) {
+    console.error('Error fetching events posted by user:', error);
+    res.status(500).json({ error: 'Failed to fetch events.' });
+  }
+};
+
